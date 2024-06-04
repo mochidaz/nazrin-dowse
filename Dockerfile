@@ -19,4 +19,4 @@ EXPOSE 8000
 
 USER app
 ENTRYPOINT ["gunicorn"]
-CMD ["main:app", "--bind", "0.0.0.0:8000", "--log-level=INFO", "--timeout=120"]
+CMD ["main:app", "--bind", "0.0.0.0:8000", "--log-level=INFO", "--timeout=120", "--worker-class", "gevent"]
