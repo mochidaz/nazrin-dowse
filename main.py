@@ -6,7 +6,7 @@ import urllib.parse
 app = Flask(__name__, static_url_path='/media', static_folder='media')
 
 class Track(object):
-    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title):
+    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar):
         self.album = album
         self.track_number = track_number
         self.arrangement_title = arrangement_title
@@ -16,6 +16,8 @@ class Track(object):
         self.vocals = vocals
         self.lyrics = lyrics
         self.original_title = original_title
+        self.guitar = guitar
+
 
 def normalize_whitespace(text):
     whitespace_chars = [
@@ -76,6 +78,7 @@ def search(search_query, url):
                 lyrics = None
                 stripped_original = None
                 stripped_input = None
+                guitar = None
 
                 for info in arrangement_info:
                     if 'original title:' in info:
@@ -86,7 +89,8 @@ def search(search_query, url):
 
                         if stripped_input not in stripped_original:
                             continue
-
+                    elif 'guitar:' in info:
+                        guitar = info.split('guitar:')[1].strip()
                     elif 'arrangement:' in info:
                         arrangement = info.split('arrangement:')[1].strip()
                     elif 'source:' in info:
@@ -111,7 +115,8 @@ def search(search_query, url):
                         source=source,
                         vocals=vocals,
                         lyrics=lyrics,
-                        original_title=original_title
+                        original_title=original_title,
+                        guitar=guitar,
                     )
                     found_tracks.append(t)
 
