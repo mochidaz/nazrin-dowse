@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Touhou Music Track Search</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f8f9fa;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        text-align: center;
+      }
+      .container {
+        background-color: #ffffff;
+        padding: 2em;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        max-width: 600px;
+        width: 100%;
+      }
+      h1 {
+        font-size: 24px;
+        margin-bottom: 1em;
+      }
+      a {
+        display: inline-block;
+        margin-bottom: 1em;
+        text-decoration: none;
+        color: #007bff;
+        transition: color 0.3s ease;
+      }
+      a:hover {
+        color: #0056b3;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+      }
+      li {
+        background-color: #f8f9fa;
+        margin-bottom: 1em;
+        padding: 1em;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        text-align: left;
+      }
+      p {
+        margin: 0.5em 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Track Search Results</h1>
+      <a href="/">Back to Search</a>
+      <ul>
+        {% for track in tracks %}
+          <li>
+            <p><strong>Album:</strong> {{ track.album }}</p>
+            <p><strong>Track Number:</strong> {{ track.track_number }}</p>
+            <p><strong>Arrangement Title:</strong> {{ track.arrangement_title }}</p>
+            <p><strong>Translated Name:</strong> {{ track.translated_name }}</p>
+            <p><strong>Arrangement:</strong> {{ track.arrangement }}</p>
+            <p><strong>Source:</strong> {{ track.source }}</p>
+            <p><strong>Vocals:</strong> {{ track.vocals }}</p>
+            <p><strong>Lyrics:</strong> {{ track.lyrics }}</p>
+            <p><strong>Original Title:</strong> {{ track.original_title }}</p>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </body>
+</html>
