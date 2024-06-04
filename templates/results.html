@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Touhou Music Track Search</title>
+    <title>Nazrin Dowse</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -21,8 +21,11 @@
         padding: 2em;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         border-radius: 8px;
-        max-width: 600px;
-        width: 100%;
+        max-width: 90%;
+        width: 600px;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        hyphens: auto;
       }
       h1 {
         font-size: 24px;
@@ -52,6 +55,24 @@
       }
       p {
         margin: 0.5em 0;
+      }
+
+      @media (max-width: 600px) {
+        h1 {
+          font-size: 20px;
+        }
+
+        a {
+          font-size: 14px;
+        }
+
+        li {
+          padding: 0.5em;
+        }
+
+        p {
+          font-size: 14px;
+        }
       }
     </style>
   </head>
