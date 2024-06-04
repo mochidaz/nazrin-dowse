@@ -6,7 +6,7 @@ import urllib.parse
 app = Flask(__name__, static_url_path='/media', static_folder='media')
 
 class Track(object):
-    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar):
+    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar, note):
         self.album = album
         self.track_number = track_number
         self.arrangement_title = arrangement_title
@@ -17,6 +17,7 @@ class Track(object):
         self.lyrics = lyrics
         self.original_title = original_title
         self.guitar = guitar
+        self.note = note
 
 
 def normalize_whitespace(text):
@@ -63,8 +64,13 @@ def search(search_query, url):
         album_response = scraper.get(album_url)
         album_soup = BeautifulSoup(album_response.text, 'html.parser')
 
+        if normalize_whitespace(search_query.lower()) not in normalize_whitespace(album_soup.text.lower().strip()):
+            continue
+
         track_lists = album_soup.find_all('ul')
         for track_list in track_lists:
+            if normalize_whitespace(search_query.lower()) not in normalize_whitespace(track_list.text.lower().strip()):
+                continue
             tracks = track_list.find_all('li', recursive=False)
             for track in tracks:
                 track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Number"
@@ -79,6 +85,7 @@ def search(search_query, url):
                 stripped_original = None
                 stripped_input = None
                 guitar = None
+                note = None
 
                 for info in arrangement_info:
                     if 'original title:' in info:
@@ -102,6 +109,8 @@ def search(search_query, url):
                             pass
                     elif 'lyrics' in info:
                         lyrics = info.split('lyrics:')[1].strip()
+                    elif 'note:' in info:
+                        note = info.split('note:')[1].strip()
                     else:
                         translated_name = info.strip()
 
@@ -117,6 +126,7 @@ def search(search_query, url):
                         lyrics=lyrics,
                         original_title=original_title,
                         guitar=guitar,
+                        note=note,
                     )
                     found_tracks.append(t)
 
