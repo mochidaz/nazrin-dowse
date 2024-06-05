@@ -165,7 +165,7 @@ def index():
 
 @app.route('/google1faec20f7ffb55d9.html')
 def google():
-    return send_from_directory('static', 'google1faec20f7ffb55d9.html')
+    return send_from_directory('templates', 'google1faec20f7ffb55d9.html')
 
 @app.route('/media/<path:filename>')
 def media(filename):
