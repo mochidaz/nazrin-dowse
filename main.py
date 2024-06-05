@@ -57,6 +57,8 @@ def search(search_query, url):
     found_tracks = []
 
     for row in rows:
+        if not row.find('a'):
+            continue
         music_href = row.find('a')['href']
         music_title = row.find('a')['title']
         music_info = row.find('dd').text
