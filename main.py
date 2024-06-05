@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, stream_template
+from flask import Flask, request, render_template, stream_template, send_from_directory
 import cloudscraper
 from bs4 import BeautifulSoup
 import urllib.parse
@@ -162,6 +162,14 @@ def index():
         return stream_template('results.html', tracks=generate(counter))
 
     return render_template('index.html')
+
+@app.route('/google1faec20f7ffb55d9.html')
+def google():
+    return send_from_directory('static', 'google1faec20f7ffb55d9.html')
+
+@app.route('/media/<path:filename>')
+def media(filename):
+    return send_from_directory('media', filename)
 
 if __name__ == '__main__':
     app.run(debug=True)
