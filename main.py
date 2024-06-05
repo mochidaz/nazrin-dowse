@@ -68,6 +68,8 @@ def search(search_query, url):
         if normalize_whitespace(search_query.lower()) not in normalize_whitespace(album_soup.text.lower().strip()):
             continue
 
+        print(music_title)
+
         track_lists = album_soup.find_all('ul')
         for track_list in track_lists:
             if normalize_whitespace(search_query.lower()) not in normalize_whitespace(track_list.text.lower().strip()):
@@ -90,33 +92,35 @@ def search(search_query, url):
                 from_ = None
 
                 for info in arrangement_info:
-                    if 'original title:' in info:
-                        original_title = info.split('original title:')[1].strip()
-                        original_title = original_title.split('source:')[0].strip()
-                        stripped_original = normalize_whitespace(original_title.lower())
-                        stripped_input = normalize_whitespace(search_query.lower())
+                    try:
+                        if 'original title:' in info:
+                            original_title = info.split('original title:')[1].strip()
+                            original_title = original_title.split('source:')[0].strip()
+                            stripped_original = normalize_whitespace(original_title.lower())
+                            stripped_input = normalize_whitespace(search_query.lower())
 
-                        if stripped_input not in stripped_original:
-                            continue
-                    elif 'guitar:' in info:
-                        guitar = info.split('guitar:')[1].strip()
-                    elif 'arrangement:' in info:
-                        arrangement = info.split('arrangement:')[1].strip()
-                    elif 'source:' in info:
-                        source = info.split('source:')[1].strip()
-                    elif 'vocals' in info:
-                        try:
+                            if stripped_input not in stripped_original:
+                                continue
+
+                        elif 'guitar:' in info:
+                            guitar = info.split('guitar:')[1].strip()
+                        elif 'arrangement:' in info:
+                            arrangement = info.split('arrangement:')[1].strip()
+                        elif 'source:' in info:
+                            source = info.split('source:')[1].strip()
+                        elif 'vocals' in info:
                             vocals = info.split('vocals:')[1].strip()
-                        except Exception as e:
-                            pass
-                    elif 'lyrics' in info:
-                        lyrics = info.split('lyrics:')[1].strip()
-                    elif 'note:' in info:
-                        note = info.split('note:')[1].strip()
-                    elif 'from' in info:
-                        from_ = info.split('from:')[1].strip()
-                    else:
-                        translated_name = info.strip()
+                        elif 'lyrics' in info:
+                            lyrics = info.split('lyrics:')[1].strip()
+                        elif 'note:' in info:
+                            note = info.split('note:')[1].strip()
+                        elif 'from' in info:
+                            from_ = info.split('from:')[1].strip()
+                        else:
+                            translated_name = info.strip()
+
+                    except Exception:
+                        pass
 
                 if original_title and stripped_input in stripped_original:
                     t = Track(
