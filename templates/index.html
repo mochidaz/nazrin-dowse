@@ -7,9 +7,10 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-image: url('/media/flan.png');
+            background-image: url('/media/naz.jpg');
             background-size: cover;
-            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             margin: 0;
             padding: 0;
             display: flex;
@@ -124,9 +125,23 @@
                 font-size: 14px;
             }
         }
+
+        #source {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            font-size: 12px;
+            color: #000000;
+            text-decoration: none;
+            background-color: #ffffff;
+            padding: 0.5em;
+            border-radius: 4px;
+            margin: 1em;
+        }
     </style>
 </head>
 <body>
+<a id="source" href="https://twitter.com/mosu_g/status/526482406727876608" target="_blank">Background art source</a>
 <div class="loading-overlay">
     <div class="loading-spinner"></div>
 </div>
