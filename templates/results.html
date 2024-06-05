@@ -80,8 +80,20 @@
     <div class="container">
       <h1>Track Search Results</h1>
       <a href="/">Back to Search</a>
+      <p id="searching">Searching...</p>
       <ul>
         {% for track in tracks %}
+        {% if track is number %}
+          {% if track > 0 %}
+            <script>
+                document.getElementById("searching").innerText = "Finished searching. Found {{ track }} results.";
+            </script>
+          {% else %}
+            <script>
+                document.getElementById("searching").innerText = "Finished searching. No results found.";
+            </script>
+          {% endif %}
+        {% else %}
           <li>
             <p><strong>Album:</strong> {{ track.album }}</p>
             <p><strong>Track Number:</strong> {{ track.track_number }}</p>
@@ -96,7 +108,8 @@
             <p><strong>Note:</strong> {{ track.note }}</p>
             <p><strong>From:</strong> {{ track.from_ }}</p>
           </li>
-        {% endfor %}
+        {% endif %}
+      {% endfor %}
       </ul>
     </div>
   </body>

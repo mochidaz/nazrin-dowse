@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, stream_template
 import cloudscraper
 from bs4 import BeautifulSoup
 import urllib.parse
@@ -68,8 +68,6 @@ def search(search_query, url):
         if normalize_whitespace(search_query.lower()) not in normalize_whitespace(album_soup.text.lower().strip()):
             continue
 
-        print(music_title)
-
         track_lists = album_soup.find_all('ul')
         for track_list in track_lists:
             if normalize_whitespace(search_query.lower()) not in normalize_whitespace(track_list.text.lower().strip()):
@@ -116,14 +114,14 @@ def search(search_query, url):
                             note = info.split('note:')[1].strip()
                         elif 'from' in info:
                             from_ = info.split('from:')[1].strip()
-                        else:
+                        elif 'translated name:' in info:
                             translated_name = info.strip()
 
                     except Exception:
                         pass
 
                 if original_title and stripped_input in stripped_original:
-                    t = Track(
+                    yield Track(
                         album=music_title,
                         track_number=track_number,
                         arrangement_title=arrangement_title,
@@ -137,9 +135,13 @@ def search(search_query, url):
                         note=note,
                         from_=from_
                     )
-                    found_tracks.append(t)
 
-    return found_tracks
+class Counter:
+    def __init__(self):
+        self.count = 0
+
+    def increment(self):
+        self.count += 1
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -147,7 +149,15 @@ def index():
         url = request.form['url']
         search_query = request.form['search_query']
         tracks = search(search_query, url)
-        return render_template('results.html', tracks=tracks)
+        counter = Counter()
+
+        def generate(counter):
+            for track in tracks:
+                counter.increment()
+                yield track
+            yield counter.count
+
+        return stream_template('results.html', tracks=generate(counter))
 
     return render_template('index.html')
 
