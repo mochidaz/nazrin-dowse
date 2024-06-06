@@ -55,6 +55,20 @@
         border: 1px solid #ced4da;
         border-radius: 4px;
         text-align: left;
+        position: relative;
+      }
+      li > a {
+        position: absolute;
+        right: 1em;
+        top: 1em;
+      }
+      li > a > button {
+        background-color: white;
+        border: solid 1px #e3e3e3;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        font-size: 0.9rem;
+        padding: 4px 10px;
+        border-radius: 5px;
       }
       p {
         margin: 0.5em 0;
@@ -99,33 +113,42 @@
       <p id="searching">Searching...</p>
       <ul>
         {% for track in tracks %}
-        {% if track is number %}
-          {% if track > 0 %}
+          {% if track is number %}
+            {% if track > 0 %}
+              <script>
+                  document.getElementById("searching").innerText = "Finished searching. Found {{ track }} results.";
+              </script>
+            {% else %}
+              <script>
+                  document.getElementById("searching").innerText = "Finished searching. No results found.";
+              </script>
+            {% endif %}
+          {% elif track is string %}
             <script>
-                document.getElementById("searching").innerText = "Finished searching. Found {{ track }} results.";
+              document.getElementById("searching").innerText = "Searched {{track}} album";
             </script>
           {% else %}
-            <script>
-                document.getElementById("searching").innerText = "Finished searching. No results found.";
-            </script>
+            <li>
+              <p><strong>Album:</strong> {{ track.album }}</p>
+              <p><strong>Track Number:</strong> {{ track.track_number }}</p>
+              <p><strong>Arrangement Title:</strong> {{ track.arrangement_title }}</p>
+              <p><strong>Translated Name:</strong> {{ track.translated_name }}</p>
+              <p><strong>Arrangement:</strong> {{ track.arrangement }}</p>
+              <p><strong>Source:</strong> {{ track.source }}</p>
+              <p><strong>Vocals:</strong> {{ track.vocals }}</p>
+              <p><strong>Lyrics:</strong> {{ track.lyrics }}</p>
+              <p><strong>Guitar:</strong> {{ track.guitar }}</p>
+              <p><strong>Original Title:</strong> {{ track.original_title }}</p>
+              <p><strong>Note:</strong> {{ track.note }}</p>
+              <p><strong>From:</strong> {{ track.from_ }}</p>
+              {% if track.lyrics_link != None%}
+              <a href="{{track.lyrics_link}}" target="_blank">
+                <button>Open Lyrics</button>
+              </a>
+              {% endif %}
+            </li>
           {% endif %}
-        {% else %}
-          <li>
-            <p><strong>Album:</strong> {{ track.album }}</p>
-            <p><strong>Track Number:</strong> {{ track.track_number }}</p>
-            <p><strong>Arrangement Title:</strong> {{ track.arrangement_title }}</p>
-            <p><strong>Translated Name:</strong> {{ track.translated_name }}</p>
-            <p><strong>Arrangement:</strong> {{ track.arrangement }}</p>
-            <p><strong>Source:</strong> {{ track.source }}</p>
-            <p><strong>Vocals:</strong> {{ track.vocals }}</p>
-            <p><strong>Lyrics:</strong> {{ track.lyrics }}</p>
-            <p><strong>Guitar:</strong> {{ track.guitar }}</p>
-            <p><strong>Original Title:</strong> {{ track.original_title }}</p>
-            <p><strong>Note:</strong> {{ track.note }}</p>
-            <p><strong>From:</strong> {{ track.from_ }}</p>
-          </li>
-        {% endif %}
-      {% endfor %}
+        {% endfor %}
       </ul>
     </div>
   </body>
