@@ -6,7 +6,7 @@ import urllib.parse
 app = Flask(__name__, static_url_path='/media', static_folder='media')
 
 class Track(object):
-    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar, note, from_):
+    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar, note, from_, lyrics_link):
         self.album = album
         self.track_number = track_number
         self.arrangement_title = arrangement_title
@@ -15,6 +15,7 @@ class Track(object):
         self.source = source
         self.vocals = vocals
         self.lyrics = lyrics
+        self.lyrics_link = lyrics_link
         self.original_title = original_title
         self.guitar = guitar
         self.note = note
@@ -52,16 +53,14 @@ def search(search_query, url):
     scraper = cloudscraper.create_scraper()
     response = scraper.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-
-    rows = soup.find_all('tr', valign='top')
-    found_tracks = []
-
-    for row in rows:
-        if not row.find('a'):
-            continue
+    
+    rows = list(filter(lambda row: row.find('a'), soup.find_all('tr', valign='top')))
+    albumCount = len(rows)
+    yield "0/{}".format(albumCount)
+    for i, row in enumerate(rows):
+        yield "{}/{}".format(i,albumCount)
         music_href = row.find('a')['href']
         music_title = row.find('a')['title']
-        music_info = row.find('dd').text
 
         album_url = urllib.parse.urljoin(url, music_href)
         album_response = scraper.get(album_url)
@@ -76,8 +75,9 @@ def search(search_query, url):
                 continue
             tracks = track_list.find_all('li', recursive=False)
             for track in tracks:
-                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Number"
                 arrangement_title = track.find('b').get_text(strip=True) if track.find('b') else "No Title"
+                lyrics_link = urllib.parse.urljoin(url, track.find('a').attrs['href']) if track.find('a') else None
+                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Number"
                 arrangement_info = [li.get_text(strip=True) for li in track.find_all('li')]
                 original_title = None
                 translated_name = None
@@ -135,7 +135,8 @@ def search(search_query, url):
                         original_title=original_title,
                         guitar=guitar,
                         note=note,
-                        from_=from_
+                        from_=from_,
+                        lyrics_link=lyrics_link
                     )
 
 class Counter:
@@ -155,7 +156,8 @@ def index():
 
         def generate(counter):
             for track in tracks:
-                counter.increment()
+                if type(track) is not str: 
+                    counter.increment()
                 yield track
             yield counter.count
 
