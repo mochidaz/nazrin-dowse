@@ -75,9 +75,19 @@ def search(search_query, url):
                 continue
             tracks = track_list.find_all('li', recursive=False)
             for track in tracks:
-                arrangement_title = track.find('b').get_text(strip=True) if track.find('b') else "No Title"
-                lyrics_link = urllib.parse.urljoin(url, track.find('a').attrs['href']) if track.find('a') else None
-                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Number"
+                title_row = track.find('b')
+                arrangement_title = "No Title"
+                lyrics_link = None
+                track_number = "No Number"
+                if title_row:
+                    arrangement_title = title_row.get_text(strip=True)
+                    link = title_row.find('a')
+                    track_number = title_row.previous_sibling.strip().split('.')[0]
+                    if link :
+                        lyrics_link = {
+                            "link": urllib.parse.urljoin(url, link.attrs['href']),
+                            "written": link.attrs['class'][0] if "class" in link.attrs else ""
+                        }
                 arrangement_info = [li.get_text(strip=True) for li in track.find_all('li')]
                 original_title = None
                 translated_name = None

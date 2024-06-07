@@ -73,6 +73,9 @@
       p {
         margin: 0.5em 0;
       }
+      .new {
+        color: red;
+      }
 
       @media (max-width: 600px) {
         h1 {
@@ -142,9 +145,9 @@
               <p><strong>Note:</strong> {{ track.note }}</p>
               <p><strong>From:</strong> {{ track.from_ }}</p>
               {% if track.lyrics_link != None%}
-              <a href="{{track.lyrics_link}}" target="_blank">
-                <button>Open Lyrics</button>
-              </a>
+                <a href="{{track.lyrics_link["link"]}}" target="_blank">
+                  <button class="{{track.lyrics_link["written"]}}">Open Lyrics</button>
+                </a>
               {% endif %}
             </li>
           {% endif %}
