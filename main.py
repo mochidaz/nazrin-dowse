@@ -103,7 +103,6 @@ def search(search_query, url):
 
                             if stripped_input not in stripped_original:
                                 continue
-
                         elif 'guitar:' in info:
                             guitar_split = info.split('guitar:')[1].strip()
                             guitar.add(guitar_split)
@@ -128,11 +127,21 @@ def search(search_query, url):
                         elif 'translated name:' in info:
                             translated_name_split = info.strip()
                             translated_name.add(translated_name_split)
-
                     except Exception:
                         pass
 
                 if original_title and stripped_input in stripped_original:
+                    title_row = track.find('b')
+                    if title_row:
+                        arrangement_title = title_row.get_text(strip=True)
+                        link = title_row.find('a')
+                        track_number = title_row.previous_sibling.strip().split('.')[0]
+                        if link :
+                            lyrics_link = {
+                                "link": urllib.parse.urljoin(url, link.attrs['href']),
+                                "written": link.attrs['class'][0] if "class" in link.attrs else ""
+                            }
+
                     yield Track(
                         album=album_title,
                         track_number=track_number,
