@@ -59,10 +59,10 @@ def search(search_query, url):
     yield "0/{}".format(albumCount)
     for i, row in enumerate(rows):
         yield "{}/{}".format(i,albumCount)
-        music_href = row.find('a')['href']
-        music_title = row.find('a')['title']
+        album_href = row.find('a')['href']
+        album_title = row.find('a')['title']
 
-        album_url = urllib.parse.urljoin(url, music_href)
+        album_url = urllib.parse.urljoin(url, album_href)
         album_response = scraper.get(album_url)
         album_soup = BeautifulSoup(album_response.text, 'html.parser')
 
@@ -77,65 +77,75 @@ def search(search_query, url):
             for track in tracks:
                 arrangement_title = track.find('b').get_text(strip=True) if track.find('b') else "No Title"
                 lyrics_link = urllib.parse.urljoin(url, track.find('a').attrs['href']) if track.find('a') else None
-                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Number"
+                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Track Number"
                 arrangement_info = [li.get_text(strip=True) for li in track.find_all('li')]
-                original_title = None
-                translated_name = None
-                arrangement = None
-                source = None
-                vocals = None
-                lyrics = None
+                original_title = set()
+                translated_name = set()
+                arrangement = set()
+                source = set()
+                vocals = set()
+                lyrics = set()
                 stripped_original = None
                 stripped_input = None
-                guitar = None
-                note = None
-                from_ = None
+                guitar = set()
+                note = set()
+                from_ = set()
 
                 for info in arrangement_info:
                     try:
                         if 'original title:' in info:
-                            original_title = info.split('original title:')[1].strip()
-                            original_title = original_title.split('source:')[0].strip()
-                            stripped_original = normalize_whitespace(original_title.lower())
+                            original_title_split = info.split('original title:')[1].strip()
+                            original_title_split = original_title_split.split('source:')[0].strip()
+                            stripped_original = normalize_whitespace(original_title_split.lower())
                             stripped_input = normalize_whitespace(search_query.lower())
+
+                            original_title.add(original_title_split.replace("\u3000", " "))
 
                             if stripped_input not in stripped_original:
                                 continue
 
                         elif 'guitar:' in info:
-                            guitar = info.split('guitar:')[1].strip()
+                            guitar_split = info.split('guitar:')[1].strip()
+                            guitar.add(guitar_split)
                         elif 'arrangement:' in info:
-                            arrangement = info.split('arrangement:')[1].strip()
+                            arrangement_split = info.split('arrangement:')[1].strip()
+                            arrangement.add(arrangement_split)
                         elif 'source:' in info:
-                            source = info.split('source:')[1].strip()
+                            source_split = info.split('source:')[1].strip()
+                            source.add(source_split)
                         elif 'vocals' in info:
-                            vocals = info.split('vocals:')[1].strip()
+                            vocals_split = info.split('vocals:')[1].strip()
+                            vocals.add(vocals_split)
                         elif 'lyrics' in info:
-                            lyrics = info.split('lyrics:')[1].strip()
+                            lyrics_split = info.split('lyrics:')[1].strip()
+                            lyrics.add(lyrics_split)
                         elif 'note:' in info:
-                            note = info.split('note:')[1].strip()
+                            note_split = info.split('note:')[1].strip()
+                            note.add(note_split)
                         elif 'from' in info:
-                            from_ = info.split('from:')[1].strip()
+                            from_split = info.split('from:')[1].strip()
+                            from_.add(from_split)
                         elif 'translated name:' in info:
-                            translated_name = info.strip()
+                            translated_name_split = info.strip()
+                            translated_name.add(translated_name_split)
 
                     except Exception:
                         pass
 
                 if original_title and stripped_input in stripped_original:
                     yield Track(
-                        album=music_title,
+                        album=album_title,
                         track_number=track_number,
                         arrangement_title=arrangement_title,
-                        translated_name=translated_name,
-                        arrangement=arrangement,
-                        source=source,
-                        vocals=vocals,
-                        lyrics=lyrics,
-                        original_title=original_title,
-                        guitar=guitar,
-                        note=note,
-                        from_=from_,
+                        translated_name=", ".join(translated_name) if translated_name else "-",
+                        arrangement=", ".join(arrangement) if arrangement else "-",
+                        source=", ".join(source) if source else "-",
+                        vocals=", ".join(vocals) if vocals else "-",
+                        lyrics=", ".join(lyrics) if lyrics else "-",
+                        original_title=", ".join(original_title) if original_title else "-",
+                        guitar=", ".join(guitar) if guitar else "-",
+                        note=", ".join(note) if note else "-",
+                        from_=", ".join(from_) if from_ else "-",
                         lyrics_link=lyrics_link
                     )
 
