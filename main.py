@@ -78,7 +78,10 @@ def search(search_query, url):
             for track in tracks:
                 arrangement_title = track.find('b').get_text(strip=True) if track.find('b') else "No Title"
                 lyrics_link = urllib.parse.urljoin(url, track.find('a').attrs['href']) if track.find('a') else None
-                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Track Number"
+                try:
+                    track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Track Number"
+                except Exception:
+                    track_number = "No Track Number"
                 arrangement_info = [li.get_text(strip=True) for li in track.find_all('li')]
                 original_title = set()
                 translated_name = set()
@@ -101,6 +104,8 @@ def search(search_query, url):
                             stripped_input = normalize_whitespace(search_query.lower())
 
                             original_title.add(original_title_split.replace("\u3000", " "))
+
+                            print(stripped_input)
 
                             if stripped_input not in filter(lambda x: stripped_input in x, stripped_original):
                                 continue
