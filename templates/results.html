@@ -146,7 +146,7 @@
               <p><strong>From:</strong> {{ track.from_ }}</p>
               {% if track.lyrics_link != None%}
                 <a href="{{track.lyrics_link["link"]}}" target="_blank">
-                  <button class="{{track.lyrics_link["written"]}}">Open Lyrics</button>
+                  <button id="lyrics-button" class="{{track.lyrics_link["written"]}}">{{"Add Lyrics" if track.lyrics_link["written"] else "Open Lyrics" }}</button>
                 </a>
               {% endif %}
             </li>

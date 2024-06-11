@@ -73,6 +73,7 @@ def search(search_query, url):
         for track_list in track_lists:
             if normalize_whitespace(search_query.lower()) not in normalize_whitespace(track_list.text.lower().strip()):
                 continue
+
             tracks = track_list.find_all('li', recursive=False)
             for track in tracks:
                 arrangement_title = track.find('b').get_text(strip=True) if track.find('b') else "No Title"
@@ -85,7 +86,7 @@ def search(search_query, url):
                 source = set()
                 vocals = set()
                 lyrics = set()
-                stripped_original = None
+                stripped_original = set()
                 stripped_input = None
                 guitar = set()
                 note = set()
@@ -96,12 +97,12 @@ def search(search_query, url):
                         if 'original title:' in info:
                             original_title_split = info.split('original title:')[1].strip()
                             original_title_split = original_title_split.split('source:')[0].strip()
-                            stripped_original = normalize_whitespace(original_title_split.lower())
+                            stripped_original.add(normalize_whitespace(original_title_split.lower()))
                             stripped_input = normalize_whitespace(search_query.lower())
 
                             original_title.add(original_title_split.replace("\u3000", " "))
 
-                            if stripped_input not in stripped_original:
+                            if stripped_input not in filter(lambda x: stripped_input in x, stripped_original):
                                 continue
                         elif 'guitar:' in info:
                             guitar_split = info.split('guitar:')[1].strip()
@@ -130,7 +131,7 @@ def search(search_query, url):
                     except Exception:
                         pass
 
-                if original_title and stripped_input in stripped_original:
+                if original_title and filter(lambda x: stripped_input in x, stripped_original):
                     title_row = track.find('b')
                     if title_row:
                         arrangement_title = title_row.get_text(strip=True)
@@ -139,7 +140,7 @@ def search(search_query, url):
                         if link :
                             lyrics_link = {
                                 "link": urllib.parse.urljoin(url, link.attrs['href']),
-                                "written": link.attrs['class'][0] if "class" in link.attrs else ""
+                                "written": link.attrs['class'][0] if "class" in link.attrs else None
                             }
 
                     yield Track(
