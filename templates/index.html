@@ -140,6 +140,10 @@
             border-radius: 4px;
             margin: 1em;
         }
+
+        .example {
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -151,19 +155,21 @@
     <h1>Nazrin Dowse</h1>
     <h3>Touhou Arrangement Music Finder</h3>
     <img src="/media/naz-ico.png" alt="Nazrin Dowse" style="max-width: 150px; max-height: 150px; margin: 0 auto; display: block; margin-bottom: 1em;">
+    <p style="font-size: 10px">Icon by <a href="https://x.com/NVetsin" target="_blank">@NVetsin</a> on Twitter</p>
     <form method="post">
         <div>
-            <label for="url">URL:</label>
-            <p>Ex: https://en.touhouwiki.net/wiki/%E5%87%8B%E5%8F%B6%E6%A3%95 is Diao ye zong</p>
+            <label for="url">Touhou Wiki Page URL:</label>
+            <p class="example">Ex: https://en.touhouwiki.net/wiki/SOUND_HOLIC</p>
             <input type="text" id="url" name="url" required>
         </div>
         <div>
             <label for="search_query">Search Query:</label>
-            <p>Ex: Suwa Foughten Field, U.N.オーエ</p>
+            <p class="example">Ex: Suwa Foughten Field, U.N.オーエ</p>
             <input type="text" id="search_query" name="search_query" required>
         </div>
         <button type="submit">Search</button>
     </form>
+    <p>Copyright © 2024 Mochida</p>
 </div>
 <script>
     function showLoading() {
