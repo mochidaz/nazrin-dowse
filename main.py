@@ -78,13 +78,10 @@ def search(search_query, url):
             for track in tracks:
                 arrangement_title = track.find('b').get_text(strip=True) if track.find('b') else "No Title"
                 lyrics_link = urllib.parse.urljoin(url, track.find('a').attrs['href']) if track.find('a') else None
-                try:
-                    track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Track Number"
-                except Exception:
-                    track_number = "No Track Number"
+                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Track Number"
                 arrangement_info = [li.get_text(strip=True) for li in track.find_all('li')]
                 original_title = set()
-                translated_name = set()
+                translated_name = None
                 arrangement = set()
                 source = set()
                 vocals = set()
@@ -104,8 +101,6 @@ def search(search_query, url):
                             stripped_input = normalize_whitespace(search_query.lower())
 
                             original_title.add(original_title_split.replace("\u3000", " "))
-
-                            print(stripped_input)
 
                             if stripped_input not in filter(lambda x: stripped_input in x, stripped_original):
                                 continue
@@ -130,9 +125,13 @@ def search(search_query, url):
                         elif 'from' in info:
                             from_split = info.split('from:')[1].strip()
                             from_.add(from_split)
-                        elif 'translated name:' in info:
-                            translated_name_split = info.strip()
-                            translated_name.add(translated_name_split)
+                        else:
+                            ja_span = track.find('span', {'lang': 'ja'})
+                            if ja_span:
+                                translated_name_elem = ja_span.find_next('i').find_next('i')
+                                if translated_name_elem:
+                                    translated_name = translated_name_elem.get_text(strip=True)
+
                     except Exception:
                         pass
 
@@ -152,7 +151,7 @@ def search(search_query, url):
                         album=album_title,
                         track_number=track_number,
                         arrangement_title=arrangement_title,
-                        translated_name=", ".join(translated_name) if translated_name else "-",
+                        translated_name=translated_name if translated_name else "-",
                         arrangement=", ".join(arrangement) if arrangement else "-",
                         source=", ".join(source) if source else "-",
                         vocals=", ".join(vocals) if vocals else "-",
