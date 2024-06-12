@@ -6,7 +6,7 @@ import urllib.parse
 app = Flask(__name__, static_url_path='/media', static_folder='media')
 
 class Track(object):
-    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar, note, from_, lyrics_link):
+    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar, note, from_, lyrics_link, genre):
         self.album = album
         self.track_number = track_number
         self.arrangement_title = arrangement_title
@@ -20,6 +20,7 @@ class Track(object):
         self.guitar = guitar
         self.note = note
         self.from_ = from_
+        self.genre = genre
 
 
 def normalize_whitespace(text):
@@ -91,6 +92,7 @@ def search(search_query, url):
                 guitar = set()
                 note = set()
                 from_ = set()
+                genre = set()
 
                 for info in arrangement_info:
                     try:
@@ -125,6 +127,9 @@ def search(search_query, url):
                         elif 'from' in info:
                             from_split = info.split('from:')[1].strip()
                             from_.add(from_split)
+                        elif 'genre:' in info:
+                            genre_split = info.split('genre:')[1].strip()
+                            genre.add(genre_split)
                         else:
                             ja_span = track.find('span', {'lang': 'ja'})
                             if ja_span:
@@ -160,7 +165,8 @@ def search(search_query, url):
                         guitar=", ".join(guitar) if guitar else "-",
                         note=", ".join(note) if note else "-",
                         from_=", ".join(from_) if from_ else "-",
-                        lyrics_link=lyrics_link
+                        lyrics_link=lyrics_link,
+                        genre=", ".join(genre) if genre else "-"
                     )
 
 class Counter:

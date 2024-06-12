@@ -145,6 +145,7 @@
               <p><strong>Original Title:</strong> {{ track.original_title }}</p>
               <p><strong>Note:</strong> {{ track.note }}</p>
               <p><strong>From:</strong> {{ track.from_ }}</p>
+              <p><strong>Genre:</strong> {{ track.genre }}</p>
               {% if track.lyrics_link != None%}
                 <a href="{{track.lyrics_link["link"]}}" target="_blank">
                   <button id="lyrics-button" class="{{track.lyrics_link["written"]}}">{{"Add Lyrics" if track.lyrics_link["written"] else "Open Lyrics" }}</button>
