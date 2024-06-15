@@ -1,6 +1,8 @@
-# Nazrin Dowse
-
-Touhou Arrangement Music Finder
+<div align="center">
+<h1>Nazrin Dowse</h1>
+<img src="media/naz-ico.png" alt="drawing" width="200" />
+<p>Touhou Arrangement Music Finder</p>
+</div>
 
 ## What is this?
 
