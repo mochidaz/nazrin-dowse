@@ -1,0 +1,25 @@
+name: Deploy Nazrin Dowse
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Start SSH agent
+      uses: webfactory/ssh-agent@v0.5.4
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Run SSH command
+      run: ssh -o StrictHostKeyChecking=no -p 22222 rahman@edge.lemniskett.moe deploy-nazrin-dowse
