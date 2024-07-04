@@ -7,6 +7,11 @@ import json
 
 app = Flask(__name__, static_url_path='/media', static_folder='media')
 
+class ApiFormat:
+    def __init__(self, count, data):
+        self.count = count
+        self.data = data
+
 class Track(object):
     def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar, note, from_, lyrics_link, genre, album_img):
         self.album = album
@@ -217,9 +222,15 @@ def api_search():
 
     def generate(counter):
         for track in tracks:
-            if type(track) is not str and type(track) is not int: 
+            if type(track) is not str and type(track) is not int:
+                counter.increment() 
                 new_dict = vars(track)
-                yield json.dumps(new_dict)
+                yield json.dumps(
+                    ApiFormat(
+                        count=counter.count,
+                        data=new_dict
+                    ).__dict__
+                )
 
     return Response(stream_with_context(generate(counter)), status=200, content_type='application/json')
 
