@@ -223,14 +223,12 @@ def api_search():
     def generate(counter):
         for track in tracks:
             if type(track) is not str and type(track) is not int:
-                counter.increment() 
+                counter.increment()
                 new_dict = vars(track)
-                yield json.dumps(
-                    ApiFormat(
-                        count=counter.count,
-                        data=new_dict
-                    ).__dict__
-                )
+                yield json.dumps({
+                    'count': counter.count,
+                    'data': new_dict
+                }) + '\n'
 
     return Response(stream_with_context(generate(counter)), status=200, content_type='application/json')
 
