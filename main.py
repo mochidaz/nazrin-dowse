@@ -1,12 +1,14 @@
-from flask import Flask, request, render_template, stream_template, send_from_directory
+from flask import Flask, request, render_template, stream_template, send_from_directory, stream_with_context, Response, jsonify
 import cloudscraper
 from bs4 import BeautifulSoup
 import urllib.parse
 
+import json
+
 app = Flask(__name__, static_url_path='/media', static_folder='media')
 
 class Track(object):
-    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar, note, from_, lyrics_link, genre):
+    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, lyrics, original_title, guitar, note, from_, lyrics_link, genre, album_img):
         self.album = album
         self.track_number = track_number
         self.arrangement_title = arrangement_title
@@ -21,6 +23,7 @@ class Track(object):
         self.note = note
         self.from_ = from_
         self.genre = genre
+        self.album_img = "https://en.touhouwiki.net" + album_img
 
 
 def normalize_whitespace(text):
@@ -62,6 +65,7 @@ def search(search_query, url):
         yield "{}/{}".format(i,albumCount)
         album_href = row.find('a')['href']
         album_title = row.find('a')['title']
+        album_image = row.find('img')['src']
 
         album_url = urllib.parse.urljoin(url, album_href)
         album_response = scraper.get(album_url)
@@ -166,7 +170,8 @@ def search(search_query, url):
                         note=", ".join(note) if note else "-",
                         from_=", ".join(from_) if from_ else "-",
                         lyrics_link=lyrics_link,
-                        genre=", ".join(genre) if genre else "-"
+                        genre=", ".join(genre) if genre else "-",
+                        album_img=album_image
                     )
 
 class Counter:
@@ -202,6 +207,21 @@ def google():
 @app.route('/media/<path:filename>')
 def media(filename):
     return send_from_directory('media', filename)
+
+@app.route("/api/search", methods=['GET'])
+def api_search():
+    url = request.args.get('url')
+    search_query = request.args.get('search_query')
+    tracks = search(search_query, url)
+    counter = Counter()
+
+    def generate(counter):
+        for track in tracks:
+            if type(track) is not str and type(track) is not int: 
+                new_dict = vars(track)
+                yield json.dumps(new_dict)
+
+    return Response(stream_with_context(generate(counter)), status=200, content_type='application/json')
 
 if __name__ == '__main__':
     app.run(debug=True)
