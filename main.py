@@ -179,128 +179,6 @@ def search(search_query, url):
                         lyrics=", ".join(lyrics) if lyrics else "-",
                     )
 
-
-def search(search_query, url):
-    scraper = cloudscraper.create_scraper()
-    response = scraper.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    
-    rows = list(filter(lambda row: row.find('a'), soup.find_all('tr', valign='top')))
-    albumCount = len(rows)
-    yield "0/{}".format(albumCount)
-    for i, row in enumerate(rows):
-        yield "{}/{}".format(i,albumCount)
-        album_href = row.find('a')['href']
-        album_title = row.find('a')['title']
-        album_image = row.find('img')['src']
-
-        album_url = urllib.parse.urljoin(url, album_href)
-        album_response = scraper.get(album_url)
-        album_soup = BeautifulSoup(album_response.text, 'html.parser')
-
-        if normalize_whitespace(search_query.lower()) not in normalize_whitespace(album_soup.text.lower().strip()):
-            continue
-
-        track_lists = album_soup.find_all('ul')
-        for track_list in track_lists:
-            if normalize_whitespace(search_query.lower()) not in normalize_whitespace(track_list.text.lower().strip()):
-                continue
-
-            tracks = track_list.find_all('li', recursive=False)
-            for track in tracks:
-                arrangement_title = track.find('b').get_text(strip=True) if track.find('b') else "No Title"
-                lyrics_link = urllib.parse.urljoin(url, track.find('a').attrs['href']) if track.find('a') else None
-                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Track Number"
-                arrangement_info = [li.get_text(strip=True) for li in track.find_all('li')]
-                original_title = set()
-                translated_name = None
-                arrangement = set()
-                source = set()
-                vocals = set()
-                lyrics = set()
-                stripped_original = set()
-                stripped_input = None
-                guitar = set()
-                note = set()
-                from_ = set()
-                genre = set()
-
-                for info in arrangement_info:
-                    try:
-                        if 'original title:' in info:
-                            original_title_split = info.split('original title:')[1].strip()
-                            original_title_split = original_title_split.split('source:')[0].strip()
-                            stripped_original.add(normalize_whitespace(original_title_split.lower()))
-                            stripped_input = normalize_whitespace(search_query.lower())
-
-                            original_title.add(original_title_split.replace("\u3000", " "))
-
-                            if stripped_input not in filter(lambda x: stripped_input in x, stripped_original):
-                                continue
-                        elif 'guitar:' in info:
-                            guitar_split = info.split('guitar:')[1].strip()
-                            guitar.add(guitar_split)
-                        elif 'arrangement:' in info:
-                            arrangement_split = info.split('arrangement:')[1].strip()
-                            arrangement.add(arrangement_split)
-                        elif 'source:' in info:
-                            source_split = info.split('source:')[1].strip()
-                            source.add(source_split)
-                        elif 'vocals' in info:
-                            vocals_split = info.split('vocals:')[1].strip()
-                            vocals.add(vocals_split)
-                        elif 'lyrics' in info:
-                            lyrics_split = info.split('lyrics:')[1].strip()
-                            lyrics.add(lyrics_split)
-                        elif 'note:' in info:
-                            note_split = info.split('note:')[1].strip()
-                            note.add(note_split)
-                        elif 'from' in info:
-                            from_split = info.split('from:')[1].strip()
-                            from_.add(from_split)
-                        elif 'genre:' in info:
-                            genre_split = info.split('genre:')[1].strip()
-                            genre.add(genre_split)
-                        else:
-                            ja_span = track.find('span', {'lang': 'ja'})
-                            if ja_span:
-                                translated_name_elem = ja_span.find_next('i').find_next('i')
-                                if translated_name_elem:
-                                    translated_name = translated_name_elem.get_text(strip=True)
-
-                    except Exception:
-                        pass
-
-                if original_title and filter(lambda x: stripped_input in x, stripped_original):
-                    title_row = track.find('b')
-                    if title_row:
-                        arrangement_title = title_row.get_text(strip=True)
-                        link = title_row.find('a')
-                        track_number = title_row.previous_sibling.strip().split('.')[0]
-                        if link :
-                            lyrics_link = {
-                                "link": urllib.parse.urljoin(url, link.attrs['href']),
-                                "written": link.attrs['class'][0] if "class" in link.attrs else None
-                            }
-
-                    yield Track(
-                        album=album_title,
-                        track_number=track_number,
-                        arrangement_title=arrangement_title,
-                        translated_name=translated_name if translated_name else "-",
-                        arrangement=", ".join(arrangement) if arrangement else "-",
-                        source=", ".join(source) if source else "-",
-                        vocals=", ".join(vocals) if vocals else "-",
-                        lyrics=", ".join(lyrics) if lyrics else "-",
-                        original_title=", ".join(original_title) if original_title else "-",
-                        guitar=", ".join(guitar) if guitar else "-",
-                        note=", ".join(note) if note else "-",
-                        from_=", ".join(from_) if from_ else "-",
-                        lyrics_link=lyrics_link,
-                        genre=", ".join(genre) if genre else "-",
-                        album_img=album_image
-                    )
-
 def search_api(search_query, url):
     scraper = cloudscraper.create_scraper()
     response = scraper.get(url)
@@ -420,8 +298,22 @@ def search_api(search_query, url):
 
                     yield json.dumps({
                         'count': i,
-                        'data': vars(t)
-                    }) + '\n'
+                        'data': {
+                            'album': t.album,
+                            'track_number': t.track_number,
+                            'arrangement_title': t.arrangement_title,
+                            'translated_name': t.translated_name,
+                            'arrangement': t.arrangement,
+                            'source': t.source,
+                            'vocals': t.vocals,
+                            'original_title': t.original_title,
+                            'guitar': t.guitar,
+                            'note': t.note,
+                            'from_': t.from_,
+                            'genre': t.genre,
+                            'album_img': t.album_img,
+                        }
+                    })
 
 class Counter:
     def __init__(self):
@@ -461,20 +353,9 @@ def media(filename):
 def api_search():
     url = request.args.get('url')
     search_query = request.args.get('search_query')
-    #tracks = search(search_query, url)
     counter = Counter()
 
-    # def generate(counter):
-    #     for track in tracks:
-    #         if type(track) is not str and type(track) is not int:
-    #             counter.increment()
-    #             new_dict = vars(track)
-    #             yield json.dumps({
-    #                 'count': counter.count,
-    #                 'data': new_dict
-    #             }) + '\n'
-
-    return Response(stream_with_context(search_api(search_query, url)), status=200, content_type='application/json')
+    return search_api(search_query, url), {'Content-Type': 'application/json'}
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
