@@ -114,9 +114,6 @@ def search(search_query, url):
                                 stripped_original.add(normalize_whitespace(original_title_split.lower()))
                                 original_title.add(original_title_split.replace("\u3000", " "))
 
-                            if stripped_input not in filter(lambda x: stripped_input in x, stripped_original):
-                                continue
-
                         elif 'guitar:' in info:
                             guitar_split = info.split('guitar:')[1].strip()
                             guitar.add(guitar_split)
