@@ -108,13 +108,15 @@ def search(search_query, url):
                         if 'original title:' in info:
                             original_title_split = info.split('original title:')[1].strip()
                             original_title_split = original_title_split.split('source:')[0].strip()
-                            stripped_original.add(normalize_whitespace(original_title_split.lower()))
                             stripped_input = normalize_whitespace(search_query.lower())
 
-                            original_title.add(original_title_split.replace("\u3000", " "))
+                            if stripped_input in normalize_whitespace(original_title_split.lower()):
+                                stripped_original.add(normalize_whitespace(original_title_split.lower()))
+                                original_title.add(original_title_split.replace("\u3000", " "))
 
                             if stripped_input not in filter(lambda x: stripped_input in x, stripped_original):
                                 continue
+
                         elif 'guitar:' in info:
                             guitar_split = info.split('guitar:')[1].strip()
                             guitar.add(guitar_split)
