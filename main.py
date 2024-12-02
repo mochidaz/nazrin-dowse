@@ -65,9 +65,12 @@ def search(search_query, url):
     
     rows = list(filter(lambda row: row.find('a'), soup.find_all('tr', valign='top')))
     albumCount = len(rows)
-    yield "0/{}".format(albumCount)
+    print(f"Found {albumCount} albums")
+    yield f"0/{albumCount}"
+    
     for i, row in enumerate(rows):
-        yield "{}/{}".format(i,albumCount)
+        print(f"Processing album {i+1}/{albumCount}")
+        yield f"{i+1}/{albumCount}"
         album_href = row.find('a')['href']
         album_title = row.find('a')['title']
         album_image = row.find('img')['src']
@@ -90,14 +93,13 @@ def search(search_query, url):
                 lyrics_link = urllib.parse.urljoin(url, track.find('a').attrs['href']) if track.find('a') else None
                 track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Track Number"
                 arrangement_info = [li.get_text(strip=True) for li in track.find_all('li')]
+                
                 original_title = set()
                 translated_name = None
                 arrangement = set()
                 source = set()
                 vocals = set()
                 lyrics = set()
-                stripped_original = set()
-                stripped_input = None
                 guitar = set()
                 note = set()
                 from_ = set()
@@ -108,10 +110,7 @@ def search(search_query, url):
                         if 'original title:' in info:
                             original_title_split = info.split('original title:')[1].strip()
                             original_title_split = original_title_split.split('source:')[0].strip()
-                            stripped_input = normalize_whitespace(search_query.lower())
-
-                            if stripped_input in normalize_whitespace(original_title_split.lower()):
-                                stripped_original.add(normalize_whitespace(original_title_split.lower()))
+                            if normalize_whitespace(search_query.lower()) in normalize_whitespace(original_title_split.lower()):
                                 original_title.add(original_title_split.replace("\u3000", " "))
 
                         elif 'guitar:' in info:
@@ -145,22 +144,23 @@ def search(search_query, url):
                                 if translated_name_elem:
                                     translated_name = translated_name_elem.get_text(strip=True)
 
-                    except Exception:
+                    except Exception as e:
+                        print(f"Error parsing info: {e}")
                         pass
 
-                if original_title and filter(lambda x: stripped_input in x, stripped_original):
+                if original_title:
                     title_row = track.find('b')
                     if title_row:
                         arrangement_title = title_row.get_text(strip=True)
                         link = title_row.find('a')
                         track_number = title_row.previous_sibling.strip().split('.')[0]
-                        if link :
+                        if link:
                             lyrics_link = {
                                 "link": urllib.parse.urljoin(url, link.attrs['href']),
                                 "written": link.attrs['class'][0] if "class" in link.attrs else None
                             }
 
-                    yield Track(
+                    track_info = Track(
                         album=album_title,
                         track_number=track_number,
                         arrangement_title=arrangement_title,
@@ -178,6 +178,27 @@ def search(search_query, url):
                         lyrics=", ".join(lyrics) if lyrics else "-",
                     )
 
+                    # Debug: Print track details
+                    print("Track found:")
+                    print(f"Album: {track_info.album}")
+                    print(f"Track Number: {track_info.track_number}")
+                    print(f"Arrangement Title: {track_info.arrangement_title}")
+                    print(f"Translated Name: {track_info.translated_name}")
+                    print(f"Arrangement: {track_info.arrangement}")
+                    print(f"Source: {track_info.source}")
+                    print(f"Vocals: {track_info.vocals}")
+                    print(f"Original Title: {track_info.original_title}")
+                    print(f"Guitar: {track_info.guitar}")
+                    print(f"Note: {track_info.note}")
+                    print(f"From: {track_info.from_}")
+                    print(f"Genre: {track_info.genre}")
+                    print(f"Album Image: {track_info.album_img}")
+                    print(f"Lyrics Link: {track_info.lyrics_link}")
+                    print(f"Lyrics: {track_info.lyrics}")
+
+                    yield track_info
+
+                    
 def search_api(search_query, url):
     scraper = cloudscraper.create_scraper()
     response = scraper.get(url)
