@@ -60,6 +60,8 @@ def normalize_whitespace(text):
 
 def search(search_query, url):
     scraper = cloudscraper.create_scraper()
+    print("Scraping: " + url)
+    print("Loading page...")
     response = scraper.get(url)
     print("Status Code: ", response.status_code)
     soup = BeautifulSoup(response.text, 'html.parser')
