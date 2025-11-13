@@ -59,7 +59,9 @@ def normalize_whitespace(text):
     return text.strip()
 
 def search(search_query, url):
-    scraper = cloudscraper.create_scraper()
+    scraper = cloudscraper.create_scraper(
+        browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False}
+    )
     print("Scraping: " + url)
     print("Loading page...")
     response = scraper.get(url)
