@@ -1,386 +1,285 @@
-from flask import Flask, request, render_template, stream_template, send_from_directory, stream_with_context, Response, jsonify
+from flask import Flask, request, render_template, stream_template, send_from_directory, jsonify
 import cloudscraper
 from bs4 import BeautifulSoup
 import urllib.parse
-
 import json
+from functools import lru_cache
+from dataclasses import dataclass, asdict
+from typing import Optional, Generator, Set, Dict, Any
+import re
 
 app = Flask(__name__, static_url_path='/media', static_folder='media')
 
-class ApiFormat:
-    def __init__(self, count, data):
-        self.count = count
-        self.data = data
-
-class Track(object):
-    def __init__(self, album, track_number, arrangement_title, translated_name, arrangement, source, vocals, original_title, guitar, note, from_, genre, album_img, lyrics=None, lyrics_link=None):
-        self.album = album
-        self.track_number = track_number
-        self.arrangement_title = arrangement_title
-        self.translated_name = translated_name
-        self.arrangement = arrangement
-        self.source = source
-        self.vocals = vocals
-        self.lyrics = lyrics
-        self.lyrics_link = lyrics_link
-        self.original_title = original_title
-        self.guitar = guitar
-        self.note = note
-        self.from_ = from_
-        self.genre = genre
-        self.album_img = "https://en.touhouwiki.net" + album_img
+WHITESPACE_CHARS = [
+    '\u0020', '\u00A0', '\u1680', '\u2000', '\u2001', '\u2002', '\u2003',
+    '\u2004', '\u2005', '\u2006', '\u2007', '\u2008', '\u2009', '\u200A',
+    '\u202F', '\u205F', '\u3000'
+]
+WHITESPACE_PATTERN = re.compile('|'.join(map(re.escape, WHITESPACE_CHARS)))
 
 
-def normalize_whitespace(text):
-    whitespace_chars = [
-        '\u0020',  # Space
-        '\u00A0',  # No-Break Space
-        '\u1680',  # Ogham Space Mark
-        '\u2000',  # En Quad
-        '\u2001',  # Em Quad
-        '\u2002',  # En Space
-        '\u2003',  # Em Space
-        '\u2004',  # Three-Per-Em Space
-        '\u2005',  # Four-Per-Em Space
-        '\u2006',  # Six-Per-Em Space
-        '\u2007',  # Figure Space
-        '\u2008',  # Punctuation Space
-        '\u2009',  # Thin Space
-        '\u200A',  # Hair Space
-        '\u202F',  # Narrow No-Break Space
-        '\u205F',  # Medium Mathematical Space
-        '\u3000'  # Ideographic Space
-    ]
+@dataclass
+class Track:
+    album: str
+    track_number: str
+    arrangement_title: str
+    translated_name: str
+    arrangement: str
+    source: str
+    vocals: str
+    original_title: str
+    guitar: str
+    note: str
+    from_: str
+    genre: str
+    album_img: str
+    lyrics: str = "-"
+    lyrics_link: Optional[Dict[str, str]] = None
 
-    for ws_char in whitespace_chars:
-        text = text.replace(ws_char, ' ')
+    def __post_init__(self):
+        if self.album_img and not self.album_img.startswith('http'):
+            self.album_img = f"https://en.touhouwiki.net{self.album_img}"
 
-    text = ''.join(text.split())
-    return text.strip()
 
-def search(search_query, url):
-    scraper = cloudscraper.create_scraper(
-        browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False}
-    )
-    print("Scraping: " + url)
-    print("Loading page...")
+class ScraperSession:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.scraper = cloudscraper.create_scraper(
+                browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False}
+            )
+        return cls._instance
+
+    def get(self, url: str):
+        try:
+            response = self.scraper.get(url, timeout=30)
+            response.raise_for_status()
+            return response
+        except Exception as e:
+            print(f"Error fetching {url}: {e}")
+            return None
+
+
+@lru_cache(maxsize=128)
+def normalize_whitespace(text: str) -> str:
+    text = WHITESPACE_PATTERN.sub(' ', text)
+    return ' '.join(text.split()).strip()
+
+
+def parse_track_info(track_element, base_url: str) -> Optional[Dict[str, Any]]:
+    try:
+        title_elem = track_element.find('b')
+        if not title_elem:
+            return None
+
+        arrangement_title = title_elem.get_text(strip=True)
+        track_number = "0"
+
+        prev_sibling = title_elem.previous_sibling
+        if prev_sibling and isinstance(prev_sibling, str):
+            track_parts = prev_sibling.strip().split('.')
+            if track_parts:
+                track_number = track_parts[0]
+
+        lyrics_link = None
+        link_elem = title_elem.find('a')
+        if link_elem and 'href' in link_elem.attrs:
+            lyrics_link = {
+                "link": urllib.parse.urljoin(base_url, link_elem['href']),
+                "written": link_elem.get('class', [None])[0]
+            }
+
+        info_dict = {
+            'original_title': set(),
+            'arrangement': set(),
+            'source': set(),
+            'vocals': set(),
+            'lyrics': set(),
+            'guitar': set(),
+            'note': set(),
+            'from_': set(),
+            'genre': set(),
+            'translated_name': None
+        }
+
+        arrangement_info = [li.get_text(strip=True) for li in track_element.find_all('li')]
+
+        for info in arrangement_info:
+            info_lower = info.lower()
+
+            if 'original title:' in info_lower:
+                title = info.split('original title:', 1)[1].split('source:', 1)[0].strip()
+                info_dict['original_title'].add(title.replace("\u3000", " "))
+            elif 'guitar:' in info_lower:
+                info_dict['guitar'].add(info.split('guitar:', 1)[1].strip())
+            elif 'arrangement:' in info_lower:
+                info_dict['arrangement'].add(info.split('arrangement:', 1)[1].strip())
+            elif 'source:' in info_lower:
+                info_dict['source'].add(info.split('source:', 1)[1].strip())
+            elif 'vocals:' in info_lower:
+                info_dict['vocals'].add(info.split('vocals:', 1)[1].strip())
+            elif 'lyrics:' in info_lower:
+                info_dict['lyrics'].add(info.split('lyrics:', 1)[1].strip())
+            elif 'note:' in info_lower:
+                info_dict['note'].add(info.split('note:', 1)[1].strip())
+            elif 'from:' in info_lower:
+                info_dict['from_'].add(info.split('from:', 1)[1].strip())
+            elif 'genre:' in info_lower:
+                info_dict['genre'].add(info.split('genre:', 1)[1].strip())
+
+        ja_span = track_element.find('span', {'lang': 'ja'})
+        if ja_span:
+            translated_elem = ja_span.find_next('i')
+            if translated_elem:
+                translated_elem = translated_elem.find_next('i')
+                if translated_elem:
+                    info_dict['translated_name'] = translated_elem.get_text(strip=True)
+
+        return {
+            'track_number': track_number,
+            'arrangement_title': arrangement_title,
+            'lyrics_link': lyrics_link,
+            'info': info_dict
+        }
+    except Exception as e:
+        print(f"Error parsing track: {e}")
+        return None
+
+
+def search_generator(search_query: str, url: str, is_api: bool = False) -> Generator:
+    scraper = ScraperSession()
+    normalized_query = normalize_whitespace(search_query.lower())
+
     response = scraper.get(url)
-    print("Status Code: ", response.status_code)
+    if not response:
+        return
+
     soup = BeautifulSoup(response.text, 'html.parser')
-    
-    rows = list(filter(lambda row: row.find('a'), soup.find_all('tr', valign='top')))
-    albumCount = len(rows)
-    print(f"Found {albumCount} albums")
-    yield f"0/{albumCount}"
-    
+    rows = [row for row in soup.find_all('tr', valign='top') if row.find('a')]
+    album_count = len(rows)
+
+    print(f"Found {album_count} albums")
+    if not is_api:
+        yield f"0/{album_count}"
+
     for i, row in enumerate(rows):
-        print(f"Processing album {i+1}/{albumCount}")
-        yield f"{i+1}/{albumCount}"
-        album_href = row.find('a')['href']
-        album_title = row.find('a')['title']
-        album_image = row.find('img')['src']
+        if not is_api:
+            print(f"Processing album {i + 1}/{album_count}")
+            yield f"{i + 1}/{album_count}"
+
+        album_link = row.find('a')
+        if not album_link:
+            continue
+
+        album_href = album_link.get('href')
+        album_title = album_link.get('title', 'Unknown Album')
+        album_img = row.find('img')
+        album_image = album_img.get('src', '') if album_img else ''
 
         album_url = urllib.parse.urljoin(url, album_href)
         album_response = scraper.get(album_url)
-        album_soup = BeautifulSoup(album_response.text, 'html.parser')
+        if not album_response:
+            continue
 
-        if normalize_whitespace(search_query.lower()) not in normalize_whitespace(album_soup.text.lower().strip()):
+        album_soup = BeautifulSoup(album_response.text, 'html.parser')
+        album_text_normalized = normalize_whitespace(album_soup.text.lower())
+
+        if normalized_query not in album_text_normalized:
             continue
 
         track_lists = album_soup.find_all('ul')
         for track_list in track_lists:
-            if normalize_whitespace(search_query.lower()) not in normalize_whitespace(track_list.text.lower().strip()):
+            track_list_text = normalize_whitespace(track_list.text.lower())
+            if normalized_query not in track_list_text:
                 continue
 
             tracks = track_list.find_all('li', recursive=False)
             for track in tracks:
-                arrangement_title = track.find('b').get_text(strip=True) if track.find('b') else "No Title"
-                lyrics_link = urllib.parse.urljoin(url, track.find('a').attrs['href']) if track.find('a') else None
-                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Track Number"
-                arrangement_info = [li.get_text(strip=True) for li in track.find_all('li')]
-                
-                original_title = set()
-                translated_name = None
-                arrangement = set()
-                source = set()
-                vocals = set()
-                lyrics = set()
-                guitar = set()
-                note = set()
-                from_ = set()
-                genre = set()
+                parsed = parse_track_info(track, url)
+                if not parsed or not parsed['info']['original_title']:
+                    continue
 
-                for info in arrangement_info:
-                    try:
-                        if 'original title:' in info:
-                            original_title_split = info.split('original title:')[1].strip()
-                            original_title_split = original_title_split.split('source:')[0].strip()
-                            if normalize_whitespace(search_query.lower()) in normalize_whitespace(original_title_split.lower()):
-                                original_title.add(original_title_split.replace("\u3000", " "))
+                original_titles_normalized = {
+                    normalize_whitespace(t.lower()) for t in parsed['info']['original_title']
+                }
 
-                        elif 'guitar:' in info:
-                            guitar_split = info.split('guitar:')[1].strip()
-                            guitar.add(guitar_split)
-                        elif 'arrangement:' in info:
-                            arrangement_split = info.split('arrangement:')[1].strip()
-                            arrangement.add(arrangement_split)
-                        elif 'source:' in info:
-                            source_split = info.split('source:')[1].strip()
-                            source.add(source_split)
-                        elif 'vocals' in info:
-                            vocals_split = info.split('vocals:')[1].strip()
-                            vocals.add(vocals_split)
-                        elif 'lyrics' in info:
-                            lyrics_split = info.split('lyrics:')[1].strip()
-                            lyrics.add(lyrics_split)
-                        elif 'note:' in info:
-                            note_split = info.split('note:')[1].strip()
-                            note.add(note_split)
-                        elif 'from' in info:
-                            from_split = info.split('from:')[1].strip()
-                            from_.add(from_split)
-                        elif 'genre:' in info:
-                            genre_split = info.split('genre:')[1].strip()
-                            genre.add(genre_split)
-                        else:
-                            ja_span = track.find('span', {'lang': 'ja'})
-                            if ja_span:
-                                translated_name_elem = ja_span.find_next('i').find_next('i')
-                                if translated_name_elem:
-                                    translated_name = translated_name_elem.get_text(strip=True)
+                if not any(normalized_query in title for title in original_titles_normalized):
+                    continue
 
-                    except Exception as e:
-                        print(f"Error parsing info: {e}")
-                        pass
+                info = parsed['info']
+                track_obj = Track(
+                    album=album_title,
+                    track_number=parsed['track_number'],
+                    arrangement_title=parsed['arrangement_title'],
+                    translated_name=info['translated_name'] or "-",
+                    arrangement=", ".join(info['arrangement']) or "-",
+                    source=", ".join(info['source']) or "-",
+                    vocals=", ".join(info['vocals']) or "-",
+                    original_title=", ".join(info['original_title']) or "-",
+                    guitar=", ".join(info['guitar']) or "-",
+                    note=", ".join(info['note']) or "-",
+                    from_=", ".join(info['from_']) or "-",
+                    genre=", ".join(info['genre']) or "-",
+                    album_img=album_image,
+                    lyrics=", ".join(info['lyrics']) or "-",
+                    lyrics_link=parsed['lyrics_link']
+                )
 
-                if original_title:
-                    title_row = track.find('b')
-                    if title_row:
-                        arrangement_title = title_row.get_text(strip=True)
-                        link = title_row.find('a')
-                        track_number = title_row.previous_sibling.strip().split('.')[0]
-                        if link:
-                            lyrics_link = {
-                                "link": urllib.parse.urljoin(url, link.attrs['href']),
-                                "written": link.attrs['class'][0] if "class" in link.attrs else None
-                            }
+                if is_api:
+                    track_dict = asdict(track_obj)
+                    yield json.dumps({'count': i, 'data': track_dict}) + '\n'
+                else:
+                    yield track_obj
 
-                    track_info = Track(
-                        album=album_title,
-                        track_number=track_number,
-                        arrangement_title=arrangement_title,
-                        translated_name=translated_name if translated_name else "-",
-                        arrangement=", ".join(arrangement) if arrangement else "-",
-                        source=", ".join(source) if source else "-",
-                        vocals=", ".join(vocals) if vocals else "-",
-                        original_title=", ".join(original_title) if original_title else "-",
-                        guitar=", ".join(guitar) if guitar else "-",
-                        note=", ".join(note) if note else "-",
-                        from_=", ".join(from_) if from_ else "-",
-                        genre=", ".join(genre) if genre else "-",
-                        album_img=album_image,
-                        lyrics_link=lyrics_link,
-                        lyrics=", ".join(lyrics) if lyrics else "-",
-                    )
-
-                    # Debug: Print track details
-                    print("Track found:")
-                    print(f"Album: {track_info.album}")
-                    print(f"Track Number: {track_info.track_number}")
-                    print(f"Arrangement Title: {track_info.arrangement_title}")
-                    print(f"Translated Name: {track_info.translated_name}")
-                    print(f"Arrangement: {track_info.arrangement}")
-                    print(f"Source: {track_info.source}")
-                    print(f"Vocals: {track_info.vocals}")
-                    print(f"Original Title: {track_info.original_title}")
-                    print(f"Guitar: {track_info.guitar}")
-                    print(f"Note: {track_info.note}")
-                    print(f"From: {track_info.from_}")
-                    print(f"Genre: {track_info.genre}")
-                    print(f"Album Image: {track_info.album_img}")
-                    print(f"Lyrics Link: {track_info.lyrics_link}")
-                    print(f"Lyrics: {track_info.lyrics}")
-
-                    yield track_info
-
-                    
-def search_api(search_query, url):
-    scraper = cloudscraper.create_scraper()
-    response = scraper.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    
-    rows = list(filter(lambda row: row.find('a'), soup.find_all('tr', valign='top')))
-    albumCount = len(rows)
-    for i, row in enumerate(rows):
-        album_href = row.find('a')['href']
-        album_title = row.find('a')['title']
-        album_image = row.find('img')['src']
-
-        album_url = urllib.parse.urljoin(url, album_href)
-        album_response = scraper.get(album_url)
-        album_soup = BeautifulSoup(album_response.text, 'html.parser')
-
-        if normalize_whitespace(search_query.lower()) not in normalize_whitespace(album_soup.text.lower().strip()):
-            continue
-
-        track_lists = album_soup.find_all('ul')
-        for track_list in track_lists:
-            if normalize_whitespace(search_query.lower()) not in normalize_whitespace(track_list.text.lower().strip()):
-                continue
-
-            tracks = track_list.find_all('li', recursive=False)
-            for track in tracks:
-                arrangement_title = track.find('b').get_text(strip=True) if track.find('b') else "No Title"
-                lyrics_link = urllib.parse.urljoin(url, track.find('a').attrs['href']) if track.find('a') else None
-                track_number = track.find('b').previous_sibling.strip().split('.')[0] if track.find('b') else "No Track Number"
-                arrangement_info = [li.get_text(strip=True) for li in track.find_all('li')]
-                original_title = set()
-                translated_name = None
-                arrangement = set()
-                source = set()
-                vocals = set()
-                lyrics = set()
-                stripped_original = set()
-                stripped_input = None
-                guitar = set()
-                note = set()
-                from_ = set()
-                genre = set()
-
-                for info in arrangement_info:
-                    try:
-                        if 'original title:' in info:
-                            original_title_split = info.split('original title:')[1].strip()
-                            original_title_split = original_title_split.split('source:')[0].strip()
-                            stripped_original.add(normalize_whitespace(original_title_split.lower()))
-                            stripped_input = normalize_whitespace(search_query.lower())
-
-                            original_title.add(original_title_split.replace("\u3000", " "))
-
-                            if stripped_input not in filter(lambda x: stripped_input in x, stripped_original):
-                                continue
-                        elif 'guitar:' in info:
-                            guitar_split = info.split('guitar:')[1].strip()
-                            guitar.add(guitar_split)
-                        elif 'arrangement:' in info:
-                            arrangement_split = info.split('arrangement:')[1].strip()
-                            arrangement.add(arrangement_split)
-                        elif 'source:' in info:
-                            source_split = info.split('source:')[1].strip()
-                            source.add(source_split)
-                        elif 'vocals' in info:
-                            vocals_split = info.split('vocals:')[1].strip()
-                            vocals.add(vocals_split)
-                        elif 'lyrics' in info:
-                            lyrics_split = info.split('lyrics:')[1].strip()
-                            lyrics.add(lyrics_split)
-                        elif 'note:' in info:
-                            note_split = info.split('note:')[1].strip()
-                            note.add(note_split)
-                        elif 'from' in info:
-                            from_split = info.split('from:')[1].strip()
-                            from_.add(from_split)
-                        elif 'genre:' in info:
-                            genre_split = info.split('genre:')[1].strip()
-                            genre.add(genre_split)
-                        else:
-                            ja_span = track.find('span', {'lang': 'ja'})
-                            if ja_span:
-                                translated_name_elem = ja_span.find_next('i').find_next('i')
-                                if translated_name_elem:
-                                    translated_name = translated_name_elem.get_text(strip=True)
-
-                    except Exception:
-                        pass
-
-                if original_title and filter(lambda x: stripped_input in x, stripped_original):
-                    title_row = track.find('b')
-                    if title_row:
-                        arrangement_title = title_row.get_text(strip=True)
-                        link = title_row.find('a')
-                        track_number = title_row.previous_sibling.strip().split('.')[0]
-                        if link :
-                            lyrics_link = {
-                                "link": urllib.parse.urljoin(url, link.attrs['href']),
-                                "written": link.attrs['class'][0] if "class" in link.attrs else None
-                            }
-
-                    t = Track(
-                        album=album_title,
-                        track_number=track_number,
-                        arrangement_title=arrangement_title,
-                        translated_name=translated_name if translated_name else "-",
-                        arrangement=", ".join(arrangement) if arrangement else "-",
-                        source=", ".join(source) if source else "-",
-                        vocals=", ".join(vocals) if vocals else "-",
-                        original_title=", ".join(original_title) if original_title else "-",
-                        guitar=", ".join(guitar) if guitar else "-",
-                        note=", ".join(note) if note else "-",
-                        from_=", ".join(from_) if from_ else "-",
-                        genre=", ".join(genre) if genre else "-",
-                        album_img=album_image
-                    )
-
-                    yield json.dumps({
-                        'count': i,
-                        'data': {
-                            'album': t.album,
-                            'track_number': t.track_number,
-                            'arrangement_title': t.arrangement_title,
-                            'translated_name': t.translated_name,
-                            'arrangement': t.arrangement,
-                            'source': t.source,
-                            'vocals': t.vocals,
-                            'original_title': t.original_title,
-                            'guitar': t.guitar,
-                            'note': t.note,
-                            'from_': t.from_,
-                            'genre': t.genre,
-                            'album_img': t.album_img,
-                        }
-                    })
-
-class Counter:
-    def __init__(self):
-        self.count = 0
-
-    def increment(self):
-        self.count += 1
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        url = request.form['url']
-        search_query = request.form['search_query']
-        tracks = search(search_query, url)
-        counter = Counter()
+        url = request.form.get('url', '').strip()
+        search_query = request.form.get('search_query', '').strip()
 
-        def generate(counter):
-            for track in tracks:
-                if type(track) is not str: 
-                    counter.increment()
-                yield track
-            yield counter.count
+        if not url or not search_query:
+            return render_template('index.html', error="URL and search query are required")
 
-        return stream_template('results.html', tracks=generate(counter))
+        def generate():
+            count = 0
+            for item in search_generator(search_query, url, is_api=False):
+                if not isinstance(item, str):
+                    count += 1
+                yield item
+            yield count
+
+        return stream_template('results.html', tracks=generate())
 
     return render_template('index.html')
 
+
 @app.route('/google1faec20f7ffb55d9.html')
-def google():
+def google_verification():
     return send_from_directory('templates', 'google1faec20f7ffb55d9.html')
+
 
 @app.route('/media/<path:filename>')
 def media(filename):
     return send_from_directory('media', filename)
 
+
 @app.route("/api/search", methods=['GET'])
 def api_search():
-    url = request.args.get('url')
-    search_query = request.args.get('search_query')
-    counter = Counter()
+    url = request.args.get('url', '').strip()
+    search_query = request.args.get('search_query', '').strip()
 
-    return search_api(search_query, url), {'Content-Type': 'application/json'}
+    if not url or not search_query:
+        return jsonify({'error': 'URL and search_query parameters are required'}), 400
+
+    def generate():
+        for result in search_generator(search_query, url, is_api=True):
+            yield result
+
+    return app.response_class(generate(), mimetype='application/json')
+
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', port=5000)
